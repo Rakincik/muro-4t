@@ -865,7 +865,7 @@ export default function GroupsPage() {
 
                                             <div className="space-y-2">
                                                 {filteredCourses.map(c => {
-                                                    const modeLabel = c.mode === "Both" ? "Canlı + Video" : c.mode === "Online" ? "Sadece Canlı" : "Sadece Video (Offline)";
+                                                    const modeLabel = c.mode === "Both" ? "Online Paket" : "Offline Paket";
                                                     return (
                                                     <div key={c.courseId} className="flex items-center gap-3 p-3 rounded-xl bg-[#E2E8F0]/15 hover:bg-[#E2E8F0]/30 transition-colors group">
                                                         <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center">
@@ -873,9 +873,9 @@ export default function GroupsPage() {
                                                         </div>
                                                         <div className="flex-1 min-w-0">
                                                             <p className="text-sm font-medium text-[#0A1931] truncate">{c.courseTitle}</p>
-                                                            <p className="text-[10px] text-[#A0AEC0]">{modeLabel}</p>
+                                                            <p className="text-[10px] text-[#A0AEC0]">{c.mode === "Both" ? "Canlı Yayın + Video Kayıt" : "Sadece Video Kayıtları"}</p>
                                                         </div>
-                                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${modeLabel === "Online" ? "bg-blue-50 text-blue-600 border border-blue-200" : "bg-amber-50 text-amber-600 border border-amber-200"}`}>
+                                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${c.mode === "Both" ? "bg-indigo-50 text-indigo-600 border border-indigo-200" : "bg-amber-50 text-amber-600 border border-amber-200"}`}>
                                                             {modeLabel}
                                                         </span>
                                                         <button onClick={() => handleRemoveCourse(c.courseId)}
@@ -1224,22 +1224,14 @@ export default function GroupsPage() {
 
                             <div className="mb-6">
                                 <label className="block text-[11px] font-extrabold text-[#64748B] uppercase tracking-widest mb-3">Erişim Modu <span className="text-red-500">*</span></label>
-                                <div className="grid grid-cols-3 gap-3">
+                                <div className="grid grid-cols-2 gap-3">
                                     <button 
                                         type="button"
                                         onClick={() => setAssignCourseMode("Both")}
                                         className={`flex flex-col items-center justify-center p-3 rounded-2xl border transition-all text-center ${assignCourseMode === "Both" ? "border-indigo-600 bg-indigo-50/30 ring-2 ring-indigo-600/20 shadow-sm text-indigo-600" : "border-[#E2E8F0] hover:border-[#A0AEC0] hover:bg-[#F8FAFC] text-[#64748B]"}`}
                                     >
-                                        <Layers size={26} className="mb-2" />
-                                        <span className={`text-xs font-bold leading-tight ${assignCourseMode === "Both" ? "text-indigo-900" : "text-[#475569]"}`}>İkisi Birden<br/><span className="text-[10px] font-medium opacity-80">(Canlı + Video)</span></span>
-                                    </button>
-                                    <button 
-                                        type="button"
-                                        onClick={() => setAssignCourseMode("Online")}
-                                        className={`flex flex-col items-center justify-center p-3 rounded-2xl border transition-all text-center ${assignCourseMode === "Online" ? "border-emerald-600 bg-emerald-50/30 ring-2 ring-emerald-600/20 shadow-sm text-emerald-600" : "border-[#E2E8F0] hover:border-[#A0AEC0] hover:bg-[#F8FAFC] text-[#64748B]"}`}
-                                    >
                                         <MonitorPlay size={26} className="mb-2" />
-                                        <span className={`text-xs font-bold leading-tight ${assignCourseMode === "Online" ? "text-emerald-900" : "text-[#475569]"}`}>Sadece Canlı<br/><span className="text-[10px] font-medium opacity-80">(Online Katılım)</span></span>
+                                        <span className={`text-xs font-bold leading-tight ${assignCourseMode === "Both" ? "text-indigo-900" : "text-[#475569]"}`}>Online Paket<br/><span className="text-[10px] font-medium opacity-80">(Canlı Yayın + Video Kayıt)</span></span>
                                     </button>
                                     <button 
                                         type="button"
@@ -1247,7 +1239,7 @@ export default function GroupsPage() {
                                         className={`flex flex-col items-center justify-center p-3 rounded-2xl border transition-all text-center ${assignCourseMode === "Offline" ? "border-amber-600 bg-amber-50/30 ring-2 ring-amber-600/20 shadow-sm text-amber-600" : "border-[#E2E8F0] hover:border-[#A0AEC0] hover:bg-[#F8FAFC] text-[#64748B]"}`}
                                     >
                                         <Download size={26} className="mb-2" />
-                                        <span className={`text-xs font-bold leading-tight ${assignCourseMode === "Offline" ? "text-amber-900" : "text-[#475569]"}`}>Sadece Video<br/><span className="text-[10px] font-medium opacity-80">(Offline Kayıt)</span></span>
+                                        <span className={`text-xs font-bold leading-tight ${assignCourseMode === "Offline" ? "text-amber-900" : "text-[#475569]"}`}>Offline Paket<br/><span className="text-[10px] font-medium opacity-80">(Sadece Video İzleme)</span></span>
                                     </button>
                                 </div>
                             </div>
