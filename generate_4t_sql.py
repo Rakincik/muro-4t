@@ -124,8 +124,8 @@ for group_name, emails in group_student_map.items():
     for email in set(emails): 
         safe_email = email.replace("'", "''")
         sql = f"""
-INSERT INTO "GroupMembers" ("Id", "GroupId", "UserId", "CreatedAt")
-SELECT gen_random_uuid(), g."Id", u."Id", NOW()
+INSERT INTO "GroupMembers" ("Id", "GroupId", "UserId", "Role", "Status", "AddedAt")
+SELECT gen_random_uuid(), g."Id", u."Id", 2, 'active', NOW()
 FROM "Users" u, "Groups" g
 WHERE u."Email" = '{safe_email}' AND g."Name" = '{safe_group}'
   AND NOT EXISTS (SELECT 1 FROM "GroupMembers" gm WHERE gm."GroupId" = g."Id" AND gm."UserId" = u."Id");
