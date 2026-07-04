@@ -58,8 +58,9 @@ def main():
         password_hash = "AQAAAAEAACcQAAAAEFg8b7gB5v5V6v5V6v5V6v5V6v5V6v5V6v5V6v5V6v5V6v5V6v5V6v5V6v5V6w==" # 123456
         
         role_str = "Admin"
-        if str(rol).lower() == "Ã¶ÄŸrenci": role_str = "Student"
-        elif str(rol).lower() == "eÄŸitimci": role_str = "Teacher"
+        rol_lower = str(rol).lower()
+        if "renci" in rol_lower or "student" in rol_lower: role_str = "Student"
+        elif "itimci" in rol_lower or "teacher" in rol_lower: role_str = "Teacher"
 
         cur.execute("SELECT \"Id\" FROM \"Users\" WHERE \"Phone\" = %s OR \"Email\" = %s", (phone, email))
         if not cur.fetchone():
