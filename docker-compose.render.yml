@@ -1,0 +1,40 @@
+version: "3.8"
+
+services:
+  # --- MURO Worker (FFmpeg — GPU/NVENC + QSV Mode) ---
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+      network: host
+    container_name: muro101_worker
+    restart: unless-stopped
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - Ffmpeg__Path=ffmpeg
+      - ConnectionStrings__DefaultConnection=Host=${DB_HOST};Port=${DB_PORT:-5434};Database=${DB_NAME:-muro_prod};Username=${DB_USER:-muro_user};Password=${DB_PASSWORD}
+      - ConnectionStrings__Redis=${REDIS_HOST}:${REDIS_PORT:-6381},password=${REDIS_PASSWORD},abortConnect=false
+      - Storage__HlsOutputDir=/app/wwwroot/hls
+      - Worker__NvencSlots=${WORKER_NVENC_SLOTS:-0}
+      - Worker__QsvSlots=${WORKER_QSV_SLOTS:-0}
+      - Worker__CpuSlots=${WORKER_CPU_SLOTS:-6}
+      - PleskApiUrl=${PLESK_API_URL:-https://online.monopoluzem.com.tr}
+    volumes:
+      - /mnt/storage/muro/hls:/app/wwwroot/hls
+      - /mnt/storage/muro/uploads:/app/wwwroot/uploads
+      - muro101_logs:/app/logs
+
+
+  # --- Nginx HLS Server ---
+  nginx:
+    image: nginx:alpine
+    container_name: muro_hls_server
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - /mnt/storage/muro/hls:/usr/share/nginx/html/hls:ro
+
+volumes:
+  muro101_logs:
+    driver: local

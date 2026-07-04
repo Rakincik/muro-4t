@@ -1,28 +1,89 @@
-# MURO - Mevzuat Adam (MVZ) Veri Aktarım Scripti
+# MURO LMS — Backend API
 
-Bu depo, Mevzuat Adam (mvz.muro.click) sistemi için Okinar'dan çekilen kullanıcı ve ders kayıtlarının MURO LMS veritabanına otomatik olarak aktarılması için gerekli scriptleri barındırır.
+Multi-Tenant uzaktan eğitim platformu. .NET 8 Web API.
 
-## Dosyalar
+## 🚀 Hızlı Başlangıç
 
-* `okinar_scraper_v2.js`: Okinar panelinde tarayıcı konsolunda (F12) çalıştırılacak veri kazıyıcı script. Alt grup / üst grup hiyerarşisini destekler.
-* `mevzuatadam.xlsx`: Scraper'dan alınan verilerin yapıştırılacağı Excel şablonu (Sayfa1 ve Sayfa2 sekmeleri içerir).
-* `import_data.py`: Verileri Excel'den okuyup, grupları, dersleri ve öğrencileri otomatik olarak MURO LMS veritabanına aktaran Python scripti.
-* `check_courses.py`: Aktarılan verilerin durumunu hızlıca kontrol eden araç.
+### Gereksinimler
 
-## Nasıl Çalıştırılır?
+- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
+- [PostgreSQL 15+](https://www.postgresql.org/)
+- [Redis 7+](https://redis.io/)
+- [Docker](https://www.docker.com/) (opsiyonel)
 
-1. Gerekli kütüphaneleri yükleyin:
-   ```bash
-   pip install -r requirements.txt
-   ```
+### Kurulum
 
-2. Aktarım scriptini `Dry-Run` (Sadece Okuma ve Test) modunda çalıştırın:
-   ```bash
-   python import_data.py --file mevzuatadam.xlsx
-   ```
-   *(Hata alırsanız `--host 172.19.0.3` gibi bir IP ekleyerek test edebilirsiniz).*
+```bash
+# 1. Repo'yu klonla
+git clone <repo-url>
+cd muro-v2
 
-3. Her şey düzgün görünüyorsa, veritabanına yazmak için `--execute` bayrağı ile çalıştırın:
-   ```bash
-   python import_data.py --file mevzuatadam.xlsx --execute
-   ```
+# 2. Bağımlılıkları yükle
+dotnet restore
+
+# 3. Veritabanını oluştur
+dotnet ef database update --project src/MURO.API
+
+# 4. Çalıştır
+dotnet run --project src/MURO.API
+```
+
+API varsayılan olarak `http://localhost:5000` üzerinden çalışır.
+
+### Swagger UI
+
+Development modda: [http://localhost:5000/swagger](http://localhost:5000/swagger)
+
+## 📁 Proje Yapısı
+
+```
+src/
+├── MURO.API/              # Web API katmanı
+│   ├── Controllers/       # 29 API controller
+│   ├── Middleware/         # 9 güvenlik middleware
+│   ├── Extensions/        # DI servis kayıtları
+│   └── Hubs/              # SignalR hub
+├── MURO.Application/      # İş mantığı sözleşmeleri
+│   ├── Interfaces/        # 29 servis interface
+│   ├── DTOs/              # Request/Response modelleri
+│   └── Validators/        # FluentValidation kuralları
+├── MURO.Infrastructure/   # Implementasyonlar
+│   ├── Services/          # 30 servis implementasyonu
+│   ├── Persistence/       # EF Core DbContext + Migrations
+│   └── ...
+├── MURO.Domain/           # Entity ve Enum tanımları
+│   ├── Entities/          # 35 domain entity
+│   ├── Enums/             # 8 enum
+│   └── Exceptions/        # Custom exception hiyerarşisi
+└── MURO.Worker/           # Arka plan servisleri
+```
+
+## 🔒 Güvenlik
+
+- JWT Bearer Authentication (2 saat access token + 7 gün refresh token)
+- 9 katmanlı middleware pipeline (SecurityHeaders, RateLimiter, IpBlacklist, InputSanitization, vb.)
+- Brute-force koruması (5 deneme → hesap kilidi)
+- Tek cihaz politikası (concurrent session engeli)
+- CORS sertleştirme
+
+## 📊 Performans
+
+- Redis Cache-Aside pattern (15+ read metod cache'li)
+- DB Index optimizasyonu (tüm sık sorgulanan alanlar)
+- Response Compression (Brotli + Gzip)
+- BunnyCDN video streaming (HLS adaptive bitrate)
+
+## 📖 Dokümantasyon
+
+- [Mimari Tasarım](docs/ARCHITECTURE.md)
+- [Deploy Rehberi](docs/DEPLOYMENT.md)
+- [Ortam Değişkenleri](docs/ENVIRONMENT.md)
+- Swagger UI: `/swagger` (Development modda)
+
+## 🏥 Health Check
+
+| Endpoint | Amaç |
+|----------|------|
+| `GET /health` | Tam diagnostik (DB + Redis + BBB + Sistem) |
+| `GET /health/live` | Liveness probe |
+| `GET /health/ready` | Readiness probe (DB + Redis) |

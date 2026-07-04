@@ -1,0 +1,175 @@
+# ============================================
+# MURO LMS — Production Docker Compose
+# ============================================
+# Kullanım:
+#   1. .env.production dosyasını .env olarak kopyala ve düzenle
+#   2. docker compose -f docker-compose.prod.yml up -d --build
+# ============================================
+
+services:
+  # --- PostgreSQL 16 ---
+  postgres:
+    image: postgres:16-alpine
+    container_name: muro101_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-muro_prod}
+      POSTGRES_USER: ${DB_USER:-muro_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+    ports:
+      - "0.0.0.0:5434:5432"
+    volumes:
+      - muro101_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-muro_user} -d ${DB_NAME:-muro_prod}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - muro101_network
+
+  # --- Redis 7 ---
+  redis:
+    image: redis:7-alpine
+    container_name: muro101_redis
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD:-muro_redis_2024}
+    ports:
+      - "0.0.0.0:6381:6379"
+    volumes:
+      - muro101_redisdata:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-muro_redis_2024}", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - muro101_network
+
+  # --- MURO API (.NET 8 + Worker + FFmpeg) ---
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+      network: host
+    container_name: muro101_api
+    extra_hosts:
+      - "canli.monopoluzem.com.tr:185.111.245.34"
+    restart: unless-stopped
+    ports:
+      - "5293:5292"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:5292
+      - Storage__HlsOutputDir=/app/wwwroot/hls
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=${DB_NAME:-muro_prod};Username=${DB_USER:-muro_user};Password=${DB_PASSWORD:?DB_PASSWORD is required}
+      - ConnectionStrings__Redis=redis:6379,password=${REDIS_PASSWORD:-muro_redis_2024},abortConnect=false
+      - Jwt__Secret=${JWT_SECRET:?JWT_SECRET is required}
+      - Jwt__Issuer=MURO
+      - Jwt__Audience=MURO
+      - Bbb__Url=https://canli.monopoluzem.com.tr/bigbluebutton/api
+      - Bbb__Secret=DJcEz4jbbLaA4WeBdGQ3tva0n8UXCrdm0ZVU42Ubc
+      - Bbb__WebhookSharedSecret=DJcEz4jbbLaA4WeBdGQ3tva0n8UXCrdm0ZVU42Ubc
+      - Bbb__DefaultAttendeePw=attendee123
+      - Bbb__DefaultModeratorPw=moderator123
+      - Bbb__Defaults__LogoutURL=${SITE_URL:-https://yourdomain.com}/admin/dashboard/courses
+      - Cors__AllowedOrigins__0=http://192.168.1.115:3001
+      - Cors__AllowedOrigins__1=http://192.168.1.115:3002
+      - Cors__AllowedOrigins__2=http://localhost:3001
+      - Cors__AllowedOrigins__3=https://online.monopoluzem.com.tr
+      - Cors__AllowedOrigins__4=http://online.monopoluzem.com.tr
+      - Tenant__BaseDomain=${BASE_DOMAIN:-192.168.1.115}
+      - Gemini__ApiKey=${GEMINI_API_KEY:-}
+      - Webhook__Secret=${WEBHOOK_SECRET:-CHANGE_THIS_IN_PRODUCTION}
+    volumes:
+      - /mnt/storage/muro/hls:/app/wwwroot/hls
+      - /mnt/storage/muro/podcasts:/app/wwwroot/podcasts
+      - /mnt/storage/muro/uploads:/app/wwwroot/uploads
+      - muro101_logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - muro101_network
+
+  # --- MURO Worker (FFmpeg — CPU mode) ---
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+      network: host
+    container_name: muro101_worker
+    restart: unless-stopped
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - Ffmpeg__Path=ffmpeg
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=${DB_NAME:-muro_prod};Username=${DB_USER:-muro_user};Password=${DB_PASSWORD:?DB_PASSWORD is required}
+      - ConnectionStrings__Redis=redis:6379,password=${REDIS_PASSWORD:-muro_redis_2024},abortConnect=false
+      - Storage__HlsOutputDir=/app/wwwroot/hls
+      # Xeon E5-2650 v4 sunucusunda GPU/QSV olmadığı için transcode işlemini CPU'ya yönlendiriyoruz
+      - Worker__NvencSlots=0
+      - Worker__QsvSlots=0
+      - Worker__CpuSlots=6
+    volumes:
+      - /mnt/storage/muro/hls:/app/wwwroot/hls
+      - /mnt/storage/muro/uploads:/app/wwwroot/uploads
+      - muro101_logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - muro101_network
+
+  # --- Admin Frontend (Next.js) ---
+  admin:
+    build:
+      context: ./frontend/admin
+      dockerfile: Dockerfile
+      network: host
+      args:
+        NEXT_PUBLIC_API_URL: ${SITE_URL:-http://192.168.1.115:5292}/api/v1
+    container_name: muro101_admin
+    restart: unless-stopped
+    ports:
+      - "3003:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - HOSTNAME=0.0.0.0
+    networks:
+      - muro101_network
+
+  # --- Student Frontend (Next.js) ---
+  student:
+    build:
+      context: ./frontend/student
+      dockerfile: Dockerfile
+      network: host
+      args:
+        NEXT_PUBLIC_API_URL: ${SITE_URL:-https://yourdomain.com}/api/v1
+    container_name: muro101_student
+    restart: unless-stopped
+    ports:
+      - "3004:3002"
+    environment:
+      - NODE_ENV=production
+      - PORT=3002
+      - HOSTNAME=0.0.0.0
+    networks:
+      - muro101_network
+
+volumes:
+  muro101_pgdata:
+    driver: local
+  muro101_redisdata:
+    driver: local
+  muro101_logs:
+    driver: local
+
+networks:
+  muro101_network:
+    driver: bridge
