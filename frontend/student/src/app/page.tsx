@@ -37,24 +37,20 @@ export default function StudentLoginPage() {
 
         const isDev = window.location.hostname === "localhost";
         let targetUrl = "";
-        
+
         if (isDev) {
           targetUrl = `http://localhost:3001/dashboard`;
         } else {
           // Subdomain architecture: e.g. 3u.muro.click -> 3u-ad.muro.click
           const currentHost = window.location.hostname;
           let adminHost = currentHost;
-          
+
           if (currentHost.startsWith("3u.")) {
             adminHost = currentHost.replace("3u.", "3u-ad.");
-          } else if (currentHost.split('.').length > 2) {
-             const parts = currentHost.split('.');
-             parts[0] = parts[0] + '-adm';
-             adminHost = parts.join('.');
           } else {
-             adminHost = "admin." + currentHost;
+            adminHost = "admin." + currentHost;
           }
-          
+
           targetUrl = `https://${adminHost}/dashboard`;
         }
 
